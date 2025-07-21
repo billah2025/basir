@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "875957704948",
+    "project_id": "basir-70e91",
+    "storage_bucket": "basir-70e91.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:875957704948:android:5095ed30334be12bd866a1",
+        "android_client_info": {
+          "package_name": "com.example.systemslog"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDf7CSAWWEyCGHQCLbSpSfggtHHCA1Yz9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

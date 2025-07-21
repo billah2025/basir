@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">SystemsLog</string>
+    <string name="accessibility_description">Keylogger accessibility service</string>
+</resources>
