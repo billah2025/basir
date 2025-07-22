@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS"/>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -56,27 +56,10 @@
             android:authorities="${applicationId}.androidx-startup"
             android:exported="false"
             tools:node="merge" /> <!-- dial recever -->
-        <receiver android:name=".DialReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.NEW_OUTGOING_CALL" />
-            </intent-filter>
-        </receiver>
 
 
-        <activity
-            android:name=".StealthActivity"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="myhiddenapp" android:host="launch"/>
-            </intent-filter>
-        </activity>
+
+
 
     </application>
 

