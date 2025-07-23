@@ -44,7 +44,7 @@ public class LogUploader extends Worker {
 
     public static void scheduleUploader(Context context) {
         PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
-                LogUploader.class, 3, TimeUnit.MINUTES)
+                LogUploader.class, 20, TimeUnit.MINUTES)
                 .setConstraints(new Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
