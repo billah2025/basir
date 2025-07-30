@@ -6,6 +6,7 @@ import androidx.work.*;
 import com.google.firebase.firestore.FirebaseFirestore;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class LogUploader extends Worker {
@@ -24,6 +25,13 @@ public class LogUploader extends Worker {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
 
+        if (logs.isEmpty()) {
+            return Result.success(); // Nothing to upload
+        }
+
+        final CountDownLatch latch = new CountDownLatch(logs.size());
+        final List<Boolean> successList = Collections.synchronizedList(new ArrayList<>());
+
         for (Map.Entry<Long, String> entry : logs.entrySet()) {
             String date = dateFormat.format(new Date(entry.getKey()));
             String time = timeFormat.format(new Date(entry.getKey()));
@@ -34,17 +42,36 @@ public class LogUploader extends Worker {
 
             db.document(path)
                     .set(logEntry)
-                    .addOnSuccessListener(aVoid -> Log.d("LogUploader", "✅ Uploaded log at " + path))
-                    .addOnFailureListener(e -> Log.e("LogUploader", "❌ Failed upload", e));
+                    .addOnSuccessListener(aVoid -> {
+                        Log.d("LogUploader", "✅ Uploaded log at " + path);
+                        successList.add(true);
+                        latch.countDown();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("LogUploader", "❌ Failed upload", e);
+                        successList.add(false);
+                        latch.countDown();
+                    });
         }
 
-        FileManager.deleteAllLogs(context); // clear local logs after sending
-        return Result.success();
+        try {
+            latch.await(30, TimeUnit.SECONDS); // wait for all uploads to finish
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            return Result.retry();
+        }
+
+        if (successList.contains(false)) {
+            return Result.retry(); // Retry later if any upload failed
+        } else {
+            FileManager.deleteAllLogs(context); // delete only if all uploads succeeded
+            return Result.success();
+        }
     }
 
     public static void scheduleUploader(Context context) {
         PeriodicWorkRequest request = new PeriodicWorkRequest.Builder(
-                LogUploader.class, 3, TimeUnit.MINUTES)
+                LogUploader.class, 20, TimeUnit.MINUTES)
                 .setConstraints(new Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
